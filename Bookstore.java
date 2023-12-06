@@ -15,7 +15,7 @@ public class Bookstore {
 
             // CRUD operations
             retrieveBooks(connection);
-            //updateBook(connection, 1, "The Great Gatsby Revised", 45);
+            //updateBook(connection, 1, "dsddddd", 45);
             //removeBook(connection, 2);
 
             // Transaction
