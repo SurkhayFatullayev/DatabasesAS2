@@ -7,19 +7,19 @@ public class Bookstore {
             createTables(connection);
 
             // Insert
-            insertAuthor(connection, "xcx");
-            insertAuthor(connection, "dfsdfs");
-            insertBook(connection, "dsddddd", 1, 50);
-            insertBook(connection, "dddddsds", 2, 30);
-            insertCustomer(connection, "me");
+            insertAuthor(connection, "B.Evenson");
+            insertAuthor(connection, "D.Sheff");
+            insertBook(connection, "Dead Space : Martyr", 1, 50);
+            insertBook(connection, "Game Over", 2, 30);
+            insertCustomer(connection, "Surkhay Fatullayev");
 
             // CRUD operations
             retrieveBooks(connection);
-            //updateBook(connection, 1, "dsddddd", 45);
+            //updateBook(connection, 1, "", 5);
             //removeBook(connection, 2);
 
             // Transaction
-            placeOrder(connection, 1, 6, 2); // Assuming customerId=1, bookId=3, quantity=2
+            placeOrder(connection, 1, 1, 2); 
 
             // Metadata
             displayTableInfo(connection);
