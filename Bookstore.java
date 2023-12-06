@@ -162,43 +162,58 @@ public class Bookstore {
 
     private static void displayTableInfo(Connection connection) throws SQLException {
         DatabaseMetaData metaData = connection.getMetaData();
-        ResultSet tables = metaData.getTables(null, null, "%", null);
+        ResultSet tables = metaData.getTables(null, null, "%", new String[]{"TABLE"});
+    
+        System.out.println("User Table Names:");
         while (tables.next()) {
-            System.out.println("Table Name: " + tables.getString("TABLE_NAME"));
+            String tableName = tables.getString("TABLE_NAME");
+            System.out.println(" - " + tableName);
         }
     }
+    
 
     private static void displayColumnInfo(Connection connection) throws SQLException {
         DatabaseMetaData metaData = connection.getMetaData();
-        ResultSet columns = metaData.getColumns(null, null, "Books", "%");
+        ResultSet columns = metaData.getColumns(null, null, "books", "%");
+    
+        System.out.println("Columns of User Table (books):");
         while (columns.next()) {
-            System.out.println("Column Name: " + columns.getString("COLUMN_NAME") +
-                    ", Data Type: " + columns.getString("TYPE_NAME"));
+            String columnName = columns.getString("COLUMN_NAME");
+            String dataType = columns.getString("TYPE_NAME");
+            System.out.println(" - Column Name: " + columnName + ", Data Type: " + dataType);
         }
     }
+    
 
     private static void displayKeyInfo(Connection connection) throws SQLException {
         DatabaseMetaData metaData = connection.getMetaData();
-
-        ResultSet primaryKeys = metaData.getPrimaryKeys(null, null, "Books");
-        System.out.println("Primary Keys:");
-        while (primaryKeys.next()) {
-            System.out.println(" - " + primaryKeys.getString("COLUMN_NAME"));
-        }
-
-        ResultSet foreignKeys = metaData.getImportedKeys(null, null, "Books");
-        System.out.println("Foreign Keys:");
-        while (foreignKeys.next()) {
-            System.out.println(" - " + foreignKeys.getString("FKCOLUMN_NAME") +
-                    " references " + foreignKeys.getString("PKTABLE_NAME") +
-                    "(" + foreignKeys.getString("PKCOLUMN_NAME") + ")");
-        }
-
-        if (primaryKeys != null) {
-            primaryKeys.close();
-        }
-        if (foreignKeys != null) {
-            foreignKeys.close();
+    
+        ResultSet tables = metaData.getTables(null, null, "%",  new String[]{"TABLE"});
+        while (tables.next()) {
+            String tableName = tables.getString("TABLE_NAME");
+    
+            if (!tableName.startsWith("pg_")) {
+                System.out.println("Keys for Table (" + tableName + "):");
+    
+                ResultSet primaryKeys = metaData.getPrimaryKeys(null, null, tableName);
+                while (primaryKeys.next()) {
+                    String primaryKeyColumn = primaryKeys.getString("COLUMN_NAME");
+                    System.out.println(" - Primary Key: " + primaryKeyColumn);
+                }
+    
+                ResultSet foreignKeys = metaData.getImportedKeys(null, null, tableName);
+                while (foreignKeys.next()) {
+                    String foreignKeyColumn = foreignKeys.getString("FKCOLUMN_NAME");
+                    String referencedTable = foreignKeys.getString("PKTABLE_NAME");
+                    String referencedColumnName = foreignKeys.getString("PKCOLUMN_NAME");
+                    System.out.println(" - Foreign Key: " + foreignKeyColumn +
+                            " references " + referencedTable +
+                            "(" + referencedColumnName + ")");
+                }
+    
+                System.out.println();
+            }
         }
     }
+    
 }
