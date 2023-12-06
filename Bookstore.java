@@ -1,29 +1,27 @@
 import java.sql.*;
 
 public class Bookstore {
+
     public static void main(String[] args) {
         try (Connection connection = DatabaseConnection.getConnection()) {
-            // Insert Authors
-            insertAuthor(connection, "someone1");
-            insertAuthor(connection, "someone2");
+            createTables(connection);
 
-            // Insert Books
-            insertBook(connection, "Film1", "someone1", 50);
-            insertBook(connection, "Film2", "someone2", 30);
+            // Insert
+            insertAuthor(connection, "xcx");
+            insertAuthor(connection, "dfsdfs");
+            insertBook(connection, "dsddddd", 1, 50);
+            insertBook(connection, "dddddsds", 2, 30);
+            insertCustomer(connection, "me");
 
-            // Retrieve
+            // CRUD operations
             retrieveBooks(connection);
+            //updateBook(connection, 1, "The Great Gatsby Revised", 45);
+            //removeBook(connection, 2);
 
-            // Update
-            updateBook(connection, 1, "someone1", 45);
+            // Transaction
+            placeOrder(connection, 1, 6, 2); // Assuming customerId=1, bookId=3, quantity=2
 
-            // Delete
-            removeBook(connection, 2);
-
-            // Transaction Management
-            placeOrder(connection, 1, 3);
-
-            // Metadata Access
+            // Metadata
             displayTableInfo(connection);
             displayColumnInfo(connection);
             displayKeyInfo(connection);
@@ -33,21 +31,32 @@ public class Bookstore {
         }
     }
 
-
-    private static void insertBook(Connection connection, String title, String authorName, int stockQuantity) throws SQLException {
-        int authorId = getAuthorId(connection, authorName);
-        if (authorId == -1) {
-            insertAuthor(connection, authorName);
-            authorId = getAuthorId(connection, authorName);
-        }
-
-        // Now insert the book
-        String insertBookQuery = "INSERT INTO Books (title, author_id, stock_quantity) VALUES (?, ?, ?)";
-        try (PreparedStatement preparedStatement = connection.prepareStatement(insertBookQuery)) {
-            preparedStatement.setString(1, title);
-            preparedStatement.setInt(2, authorId);
-            preparedStatement.setInt(3, stockQuantity);
-            preparedStatement.executeUpdate();
+    private static void createTables(Connection connection) throws SQLException {
+        String createAuthorsTable = "CREATE TABLE IF NOT EXISTS Authors (" +
+                "author_id SERIAL PRIMARY KEY," +
+                "author_name VARCHAR(255) NOT NULL)";
+        
+        String createBooksTable = "CREATE TABLE IF NOT EXISTS Books (" +
+                "book_id SERIAL PRIMARY KEY," +
+                "title VARCHAR(255) NOT NULL," +
+                "author_id INT REFERENCES Authors(author_id)," +
+                "stock_quantity INT NOT NULL)";
+        
+        String createCustomersTable = "CREATE TABLE IF NOT EXISTS Customers (" +
+                "customer_id SERIAL PRIMARY KEY," +
+                "customer_name VARCHAR(255) NOT NULL)";
+        
+        String createOrdersTable = "CREATE TABLE IF NOT EXISTS Orders (" +
+                "order_id SERIAL PRIMARY KEY," +
+                "customer_id INT REFERENCES Customers(customer_id)," +
+                "book_id INT REFERENCES Books(book_id)," +
+                "quantity INT NOT NULL)";
+        
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate(createAuthorsTable);
+            statement.executeUpdate(createBooksTable);
+            statement.executeUpdate(createCustomersTable);
+            statement.executeUpdate(createOrdersTable);
         }
     }
 
@@ -59,28 +68,34 @@ public class Bookstore {
         }
     }
 
-    private static int getAuthorId(Connection connection, String authorName) throws SQLException {
-        String getAuthorIdQuery = "SELECT author_id FROM Authors WHERE author_name = ?";
-        try (PreparedStatement preparedStatement = connection.prepareStatement(getAuthorIdQuery)) {
-            preparedStatement.setString(1, authorName);
-            ResultSet resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                return resultSet.getInt("author_id");
-            } else {
-                return -1; 
-            }
+    private static void insertBook(Connection connection, String title, int authorId, int stockQuantity) throws SQLException {
+        String insertBookQuery = "INSERT INTO Books (title, author_id, stock_quantity) VALUES (?, ?, ?)";
+        try (PreparedStatement preparedStatement = connection.prepareStatement(insertBookQuery)) {
+            preparedStatement.setString(1, title);
+            preparedStatement.setInt(2, authorId);
+            preparedStatement.setInt(3, stockQuantity);
+            preparedStatement.executeUpdate();
+        }
+    }
+
+    private static void insertCustomer(Connection connection, String customerName) throws SQLException {
+        String insertCustomerQuery = "INSERT INTO Customers (customer_name) VALUES (?)";
+        try (PreparedStatement preparedStatement = connection.prepareStatement(insertCustomerQuery)) {
+            preparedStatement.setString(1, customerName);
+            preparedStatement.executeUpdate();
         }
     }
 
 
     private static void retrieveBooks(Connection connection) throws SQLException {
-        String retrieveBooksQuery = "SELECT * FROM Books";
+        String retrieveBooksQuery = "SELECT b.book_id, b.title, a.author_name, b.stock_quantity " +
+                "FROM Books b JOIN Authors a ON b.author_id = a.author_id";
         try (PreparedStatement preparedStatement = connection.prepareStatement(retrieveBooksQuery)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
                 System.out.println("Book ID: " + resultSet.getInt("book_id") +
                         ", Title: " + resultSet.getString("title") +
-                        ", Author ID: " + resultSet.getInt("author_id") +
+                        ", Author: " + resultSet.getString("author_name") +
                         ", Stock Quantity: " + resultSet.getInt("stock_quantity"));
             }
         }
@@ -104,7 +119,7 @@ public class Bookstore {
         }
     }
 
-    private static void placeOrder(Connection connection, int customerId, int bookId) throws SQLException {
+      private static void placeOrder(Connection connection, int customerId, int bookId, int quantity) throws SQLException {
         connection.setAutoCommit(false);
 
         String checkStockQuery = "SELECT stock_quantity FROM Books WHERE book_id=?";
@@ -113,18 +128,20 @@ public class Bookstore {
             ResultSet resultSet = checkStockStatement.executeQuery();
             if (resultSet.next()) {
                 int stockQuantity = resultSet.getInt("stock_quantity");
-                if (stockQuantity > 0) {
-                   
-                    String insertOrderQuery = "INSERT INTO Orders (customer_id, book_id, quantity) VALUES (?, ?, 1)";
+                if (stockQuantity >= quantity) {
+                    
+                    String insertOrderQuery = "INSERT INTO Orders (customer_id, book_id, quantity) VALUES (?, ?, ?)";
                     try (PreparedStatement insertOrderStatement = connection.prepareStatement(insertOrderQuery)) {
                         insertOrderStatement.setInt(1, customerId);
                         insertOrderStatement.setInt(2, bookId);
+                        insertOrderStatement.setInt(3, quantity);
                         insertOrderStatement.executeUpdate();
                     }
 
+                    
                     String updateStockQuery = "UPDATE Books SET stock_quantity=? WHERE book_id=?";
                     try (PreparedStatement updateStockStatement = connection.prepareStatement(updateStockQuery)) {
-                        updateStockStatement.setInt(1, stockQuantity - 1);
+                        updateStockStatement.setInt(1, stockQuantity - quantity);
                         updateStockStatement.setInt(2, bookId);
                         updateStockStatement.executeUpdate();
                     }
@@ -169,7 +186,6 @@ public class Bookstore {
             System.out.println(" - " + primaryKeys.getString("COLUMN_NAME"));
         }
 
-
         ResultSet foreignKeys = metaData.getImportedKeys(null, null, "Books");
         System.out.println("Foreign Keys:");
         while (foreignKeys.next()) {
@@ -186,4 +202,3 @@ public class Bookstore {
         }
     }
 }
-
